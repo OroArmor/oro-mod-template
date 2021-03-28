@@ -35,6 +35,8 @@ repositories {
     }
 }
 
+ext.changelog = ""
+
 tasks.withType(Sign) {
     onlyIf { project.hasProperty("sign") }
 }
@@ -59,8 +61,7 @@ dependencies {
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
-    // You may need to force-disable transitiveness on them.
+    modImplementation(include("com.oroarmor:oro-config-fabric:2.0.0"))
 }
 
 processResources {
@@ -167,6 +168,10 @@ curseforge {
             releaseType = "release"
             project.game_versions.split(",").each { String game_version -> addGameVersion game_version }
             addGameVersion "Fabric"
+
+            changelogType = "html"
+            changelog = project.ext.changelog
+
 //			relations {
 //				requiredDependency "fabric-api"
 //			}
@@ -190,6 +195,7 @@ task publishToModrinth(type: TaskModrinthUpload) {
     token = System.getenv("MODRINTH_TOKEN") // Use an environment property!
     projectId = project.modrinth_id
     versionNumber = project.version
+    changelog = project.ext.changelog
     uploadFile = remapJar.archivePath // This is the java jar task
     project.game_versions.split(",").each { String game_version -> addGameVersion(game_version) }
     addLoader('fabric')
@@ -206,10 +212,24 @@ task github {
 
         def releaseBuilder = new org.kohsuke.github.GHReleaseBuilder(repository, project.mod_version)
         releaseBuilder.name("$project.project_name $project.mod_version for $project.minecraft_version")
-        releaseBuilder.body("Version: ${project.version}")
+        releaseBuilder.body(project.ext.changelog)
         releaseBuilder.commitish("master")
 
         def ghRelease = releaseBuilder.create()
         ghRelease.uploadAsset(file("${project.rootDir}/build/libs/${archivesBaseName}-${version}.jar"), "application/java-archive");
     }
+}
+
+task generateChangelog {
+    def changelogFile = file("CHANGELOG.md")
+    def contents = ""
+    changelogFile.withReader { reader ->
+        def line
+        while ((line = reader.readLine()) != null)
+            contents += line + "\n"
+    }
+
+    def changelogs = contents.split("\\-\\-\\-\\-")
+    project.ext.changelog = changelogs.find { log -> log.contains(project.version) }
+    println project.ext.changelog
 }
