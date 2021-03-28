@@ -17,7 +17,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Deploy
-        run: .build/deploy.sh
+        run: chmod +x .build/deploy.sh
       - name: Deploy
         run: .build/deploy.sh
         env:
